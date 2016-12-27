@@ -25,7 +25,7 @@ function logerr(err){
 }
 
 const sqlite = require('sqlite3').verbose();
-const db = new sqlite.Database('data.db');
+const db = new sqlite.Database('data.sqlite');
 db.exec(`
 CREATE TABLE if not exists authors (
   idauthor int(11) NOT NULL,
