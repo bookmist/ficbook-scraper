@@ -4,6 +4,7 @@
 		"request": "latest",
 		"bluebird": "latest",
 		"tress": "latest",
+		"request-promise": "latest",
 		"sqlite3": "latest"
 
 	}
