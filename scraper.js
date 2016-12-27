@@ -71,9 +71,9 @@ function safeGet(match, index) {
     }
 }
 
-function collectListToDB(collect){
+function collectListToDB(collect,callback){
 	console.log('collectListToDB');
-    db.run('begin transaction',logerr);
+    //db.run('begin transaction',logerr);
     var stmt = db.prepare('REPLACE INTO collections (idcollection,name,idauthor,cnt ) values (?,?,?,?)',logerr);
     collect.forEach(function(item){
         stmt.run([item.id, item.name, item.authorId, item.cnt],logerr);
@@ -82,14 +82,15 @@ function collectListToDB(collect){
     collect.forEach(function(item){
         stmt.run([item.authorId, item.authorName],logerr);
     });
-    db.serialize(function(){
-        db.run('commit',logerr);
-    });
+//    db.serialize(function(){
+//        db.run('commit',logerr);
+//    });
+    callback();
 }
 
 function collectDataToDB(collect, collectId,callback){
 	console.log('collectDataToDB '+collectId);
-    db.run('begin transaction',logerr);
+//    db.run('begin transaction',logerr);
 	db.run('DELETE FROM books_collections where idcollection = ?', [collectId],function(err) {
         logerr(err);
         var stmt = db.prepare('REPLACE INTO books (idbook,name,idauthor,card ) values (?,?,?,?)',logerr);
@@ -106,9 +107,10 @@ function collectDataToDB(collect, collectId,callback){
         collect.forEach(function(item){
             stmt.run([collectId, item.id],logerr);
         });
-        db.serialize(function(){
-            db.run('commit',logerr);
-        });
+//        db.serialize(function(){
+//            db.run('commit',function(err){logerr(err);callback();});
+//        });
+        callback();
 	});
 }
 
@@ -242,9 +244,14 @@ var q = tress(function(job, done){
 }, 5);
 
 q.drain = function(){
-    console.log('All finished');
+    console.log('commit and db close');
+    db.serialize(function(){
+        db.run('commit',logerr);
+    });
     db.close;
+    console.log('All finished');
 };
 
 console.log('https://ficbook.net/collections/' + process.env.MORPH_START_ID + '/list');
+db.run('begin transaction',logerr);
 q.push({url: 'https://ficbook.net/collections/' + process.env.MORPH_START_ID + '/list', type: 'getCollectList'});
