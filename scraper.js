@@ -1,31 +1,40 @@
 'use strict';
-//require('v8-profiler');
 const request = require('request-promise');
 const promise = require('bluebird');
 const cheerio = require('cheerio');
+//const async = require('async');
+//const tress = async.queue;
 const tress = require('tress');
 
-//const mysql      = require('mysql');
-//var mysql = promise.promisifyAll(require('mysql'));
-/*
-const connection = mysql.createConnection({
-  host     : 'localhost',
-  user     : 'root',
-  password : 'vjybnjh77',
-  database : 'sysadm'
+
+Object.defineProperty(global, '__stack', {
+	get: function(){
+		var orig = Error.prepareStackTrace;
+		Error.prepareStackTrace = function(_, stack){ return stack; };
+		var err = new Error;
+		Error.captureStackTrace(err, arguments.callee);
+		var stack = err.stack;
+		Error.prepareStackTrace = orig;
+		return stack;
+	}
 });
 
-connection.connect();
-*/
+Object.defineProperty(global, '__line', {
+	get: function(){
+		return __stack[1].getLineNumber();
+	}
+});
 
 function logerr(err){
     if (!!err){
         console.log(err);
+		//console.log(__stack);
     };
 }
 
 const sqlite = require('sqlite3').verbose();
 const db = new sqlite.Database('data.sqlite');
+db.serialize();
 db.exec(`
 CREATE TABLE if not exists authors (
   idauthor int(11) NOT NULL,
@@ -69,11 +78,11 @@ function safeGet(match, index) {
     else {
         return null;
     }
-}
+};
 
 function collectListToDB(collect,callback){
 	console.log('collectListToDB');
-    //db.run('begin transaction',logerr);
+    db.run('begin transaction',logerr);
     var stmt = db.prepare('REPLACE INTO collections (idcollection,name,idauthor,cnt ) values (?,?,?,?)',logerr);
     collect.forEach(function(item){
         stmt.run([item.id, item.name, item.authorId, item.cnt],logerr);
@@ -82,15 +91,37 @@ function collectListToDB(collect,callback){
     collect.forEach(function(item){
         stmt.run([item.authorId, item.authorName],logerr);
     });
-//    db.serialize(function(){
-//        db.run('commit',logerr);
-//    });
+	db.run('commit',logerr);
     callback();
 }
-
+/*
+function collectListToDB(collect,callback1){
+	console.log('collectListToDB');
+	db.run('begin transaction',function(err){
+		logerr(err);
+		var stmt = db.prepare('REPLACE INTO collections (idcollection,name,idauthor,cnt ) values (?,?,?,?)',function(err) {
+			async.each(collect,function (item,callback) {
+				stmt.run([item.id, item.name, item.authorId, item.cnt], function(err){logerr(err); callback(err);});
+			},function(err){
+				logerr(err);
+				stmt = db.prepare('REPLACE INTO authors (idauthor,name ) values (?,?)', logerr);
+				async.each(collect,function (item,callback) {
+					stmt.run([item.authorId, item.authorName], function(err){logerr(err); callback(err);});
+				},function(err) {
+					db.run('commit', function (err) {
+						logerr(err);
+						console.log('collectListToDB finished');
+						callback1();
+					});
+				});
+			});
+		});
+	});
+}
+*/
 function collectDataToDB(collect, collectId,callback){
 	console.log('collectDataToDB '+collectId);
-//    db.run('begin transaction',logerr);
+    db.run('begin transaction',logerr);
 	db.run('DELETE FROM books_collections where idcollection = ?', [collectId],function(err) {
         logerr(err);
         var stmt = db.prepare('REPLACE INTO books (idbook,name,idauthor,card ) values (?,?,?,?)',logerr);
@@ -107,10 +138,7 @@ function collectDataToDB(collect, collectId,callback){
         collect.forEach(function(item){
             stmt.run([collectId, item.id],logerr);
         });
-//        db.serialize(function(){
-//            db.run('commit',function(err){logerr(err);callback();});
-//        });
-        callback();
+        db.run('commit',function(err){logerr(err);callback();});
 	});
 }
 
@@ -209,15 +237,14 @@ function getCollectionCount(idCollection){
 	});
 }
 
-// create a queue object with worker and concurrency 1
-var q = tress(function(job, done){
+function processJob(job, done){
 	if (job.type==='getCollectList') {
 		getCollectList(job.url).then(function(result){
 			console.log(job.url+' parced');
 			result.map(function(item,i){q.push({url:'https://ficbook.net'+item.url,item:item,type:'getCollectData',index:i});})
 			q.unshift({result:result,type:'collectListToDB'});
 			console.log('Job '+job.type+' finished');
-            done(null);
+			done(null);
 		});
 	};
 	if (job.type==='getCollectData') {
@@ -240,18 +267,22 @@ var q = tress(function(job, done){
 	}
 	if (job.type==='collectDataToDB') {
 		collectDataToDB(job.result, job.id,function(){console.log('Job '+job.type+' finished');done(null)});
-	}	
-}, 5);
+	}
+};
+
+// create a queue object with worker and concurrency 1
+var q = tress(processJob, 5);
+//var queueDB = tress(processJob, 1);
 
 q.drain = function(){
     console.log('commit and db close');
-    db.serialize(function(){
+/*    db.serialize(function(){
         db.run('commit',logerr);
-    });
+    });*/
     db.close;
-    console.log('All finished');
+	console.log('All finished');
 };
 
 console.log('https://ficbook.net/collections/' + process.env.MORPH_START_ID + '/list');
-db.run('begin transaction',logerr);
+//db.run('begin transaction',logerr);
 q.push({url: 'https://ficbook.net/collections/' + process.env.MORPH_START_ID + '/list', type: 'getCollectList'});
