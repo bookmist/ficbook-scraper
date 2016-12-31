@@ -221,13 +221,13 @@ function getCollectData(url,results){
 
 function getCollectionCount(idCollection){
 	return new Promise(function(resolve, reject) {
-		db.run('select count(bc.idbook) as cnt from books_collections bc where bc.idcollection = ?', [idCollection], function (err, rows) {
+		db.get('select count(bc.idbook) as cnt from books_collections bc where bc.idcollection = ?', [idCollection], function (err, row) {
 			if (err) {
 				reject(err);
 			}else {
-				if (Array.isArray(rows) && rows.length > 0 )
+                if (typeof row === 'object') && (row.cnt > 0 )
 				{
-					resolve(rows[0].cnt);
+					resolve(row.cnt);
 				} else {resolve(0);}
 
 			};
