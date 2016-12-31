@@ -2,8 +2,6 @@
 const request = require('request-promise');
 const promise = require('bluebird');
 const cheerio = require('cheerio');
-//const async = require('async');
-//const tress = async.queue;
 const tress = require('tress');
 
 
@@ -249,7 +247,7 @@ function processJob(job, done){
 	};
 	if (job.type==='getCollectData') {
 		getCollectionCount(job.item.id).then(function(result){
-			if (false) { //(result === job.item.cnt){
+			if (result === job.item.cnt){
 				console.log('Collection '+ job.item.name + ' ('+ job.item.id +') already loaded');
 				done(null);
 			} else {
@@ -272,17 +270,12 @@ function processJob(job, done){
 
 // create a queue object with worker and concurrency 1
 var q = tress(processJob, 5);
-//var queueDB = tress(processJob, 1);
 
 q.drain = function(){
-    console.log('commit and db close');
-/*    db.serialize(function(){
-        db.run('commit',logerr);
-    });*/
+    console.log('db close');
     db.close;
 	console.log('All finished');
 };
 
 console.log('https://ficbook.net/collections/' + process.env.MORPH_START_ID + '/list');
-//db.run('begin transaction',logerr);
 q.push({url: 'https://ficbook.net/collections/' + process.env.MORPH_START_ID + '/list', type: 'getCollectList'});
