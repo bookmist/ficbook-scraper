@@ -225,7 +225,7 @@ function getCollectionCount(idCollection){
 			if (err) {
 				reject(err);
 			}else {
-                if (typeof row === 'object') && (row.cnt > 0 )
+                if ((typeof row === 'object') && (row.cnt > 0 )) 
 				{
 					resolve(row.cnt);
 				} else {resolve(0);}
@@ -277,5 +277,12 @@ q.drain = function(){
 	console.log('All finished');
 };
 
+	if (process.argv[2]) {
+		console.log('https://ficbook.net/collections/' + process.argv[2] + '/list');
+		q.push({url: 'https://ficbook.net/collections/' + process.argv[2] + '/list', type: 'getCollectList'});
+	} else {
+
 console.log('https://ficbook.net/collections/' + process.env.MORPH_START_ID + '/list');
 q.push({url: 'https://ficbook.net/collections/' + process.env.MORPH_START_ID + '/list', type: 'getCollectList'});
+
+}

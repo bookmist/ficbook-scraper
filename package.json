@@ -1,11 +1,11 @@
 {
-	"dependencies": {
-		"cheerio": "latest",
-		"request": "latest",
-		"bluebird": "latest",
-		"tress": "latest",
-		"request-promise": "latest",
-		"sqlite3": "latest"
-
-	}
+  "dependencies": {
+    "async": "^2.1.4",
+    "bluebird": "latest",
+    "cheerio": "latest",
+    "request": "latest",
+    "request-promise": "latest",
+    "sqlite3": "latest",
+    "tress": "latest"
+  }
 }
