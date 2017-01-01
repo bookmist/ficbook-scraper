@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "async": "^2.1.4",
     "bluebird": "latest",
     "cheerio": "latest",
     "request": "latest",
