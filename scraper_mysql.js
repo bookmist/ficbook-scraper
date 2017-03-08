@@ -17,7 +17,10 @@ mysql.createConnection({
 }).then(function(conn){
     console.log('02');
     connection = conn;
-    return collectListToDB([{id:-1,name:'test',cnt:0,authorId:-1,authorName:'test'}]);
+    return collectListToDB([{id:-1,name:'test',cnt:0,authorId:-1,authorName:'test'},{id:-2,name:'test',cnt:0,authorId:-2,authorName:'test'}]);
+}).then(function(conn){
+    console.log('02_1');
+    return collectDataToDB([{id:-1,name:'test',card:'no data',authorId:-1,authorName:'test'},{id:-2,name:'test',card:'no data',authorId:-2,authorName:'test'}],-10);
 }).then(function(){
     console.log('03');
 	return connection.end();
@@ -32,24 +35,14 @@ function collectListToDB(collect){
 	//Записываем список авторов
 	var authors = collect.map(function(item){return [item.authorId, item.authorName]});
     return connection.query('INSERT IGNORE INTO authors (idauthor,name) values ?', [authors]).then(function(){
+        //Записываем список коллекций
     	var collections = collect.map(function(item){return [item.id, item.name, item.authorId, item.cnt]});
         return connection.query('INSERT IGNORE INTO collections (idcollection,name,idauthor,cnt ) values ?', [collections]);
 	}).then(function(){
+        //Коммит
 		return connection.query('commit');
     });
-	//Записываем список коллекций
-	//Коммит
-	/*
-    var item = collect[0];
-    var items = collect.map(function(item){
-        var res = [item.id, item.name, item.authorId, item.cnt];
-        return res;
-    });
-    //console.log(items[0]);
-    return connection.query('INSERT IGNORE INTO collections (idcollection,name,idauthor,cnt ) values ?', [items]);*/
 }
-
-
 
 Object.defineProperty(global, '__stack', {
 	get: function(){
@@ -86,47 +79,25 @@ function safeGet(match, index) {
         return null;
     }
 };
-/*
-function collectListToDB(collect,callback){
-	console.log('collectListToDB');
-    db.run('begin transaction',logerr);
-    var stmt = db.prepare('REPLACE INTO collections (idcollection,name,idauthor,cnt ) values (?,?,?,?)',logerr);
-    collect.forEach(function(item){
-        stmt.run([item.id, item.name, item.authorId, item.cnt],logerr);
+
+function collectDataToDB(collect, collectId) {
+    console.log('collectDataToDB '+collectId);
+    return connection.query('DELETE FROM books_collections where idcollection = ?', [collectId]).then(function(){
+        var authors = collect.map(function(item){return [item.authorId, item.authorName]});
+        return connection.query('INSERT IGNORE INTO authors (idauthor,name) values ?', [authors]);
+    }).then(function(){
+        var books = collect.map(function(item){return [item.id, item.name, item.authorId, item.card]});
+        return connection.query('INSERT IGNORE INTO books (idbook,name,idauthor,card ) values ?', [books]);
+    }).then(function(){
+        var books_collections = collect.map(function(item){return [collectId, item.id]});
+        return connection.query('INSERT IGNORE INTO books_collections ( idcollection,idbook ) values ?', [books_collections]);
+    }).then(function(){
+        //Коммит
+        return connection.query('commit');
     });
-    stmt = db.prepare('REPLACE INTO authors (idauthor,name ) values (?,?)',logerr);
-    collect.forEach(function(item){
-        stmt.run([item.authorId, item.authorName],logerr);
-    });
-	db.run('commit',logerr);
-    callback();
-}
-/*
-function collectListToDB(collect,callback1){
-	console.log('collectListToDB');
-	db.run('begin transaction',function(err){
-		logerr(err);
-		var stmt = db.prepare('REPLACE INTO collections (idcollection,name,idauthor,cnt ) values (?,?,?,?)',function(err) {
-			async.each(collect,function (item,callback) {
-				stmt.run([item.id, item.name, item.authorId, item.cnt], function(err){logerr(err); callback(err);});
-			},function(err){
-				logerr(err);
-				stmt = db.prepare('REPLACE INTO authors (idauthor,name ) values (?,?)', logerr);
-				async.each(collect,function (item,callback) {
-					stmt.run([item.authorId, item.authorName], function(err){logerr(err); callback(err);});
-				},function(err) {
-					db.run('commit', function (err) {
-						logerr(err);
-						console.log('collectListToDB finished');
-						callback1();
-					});
-				});
-			});
-		});
-	});
-}
-*/
-function collectDataToDB(collect, collectId,callback){
+};
+
+function collectDataToDB_(collect, collectId,callback){
 	console.log('collectDataToDB '+collectId);
     db.run('begin transaction',logerr);
 	db.run('DELETE FROM books_collections where idcollection = ?', [collectId],function(err) {
