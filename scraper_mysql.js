@@ -17,10 +17,8 @@ mysql.createConnection({
 }).then(function(conn){
     console.log('02');
     connection = conn;
-    return collectListToDB([{id:-1,name:'test',cnt:0,authorId:-1,authorName:'test'},{id:-2,name:'test',cnt:0,authorId:-2,authorName:'test'}]);
-}).then(function(conn){
-    console.log('02_1');
-    return collectDataToDB([{id:-1,name:'test',card:'no data',authorId:-1,authorName:'test'},{id:-2,name:'test',card:'no data',authorId:-2,authorName:'test'}],-10);
+    return getCollectionCount(-10).then(function(cc){console.log(cc);});
+//    return collectListToDB([{id:-1,name:'test',cnt:0,authorId:-1,authorName:'test'},{id:-2,name:'test',cnt:0,authorId:-2,authorName:'test'}]);
 }).then(function(){
     console.log('03');
 	return connection.end();
@@ -199,6 +197,12 @@ function getCollectData(url,results){
 	})
 }
 
+function getCollectionCount(idCollection) {
+	return connection.query('select count(bc.idbook) as cnt from books_collections bc where bc.idcollection = ?', [idCollection]).then(function(rows,p2,p3){
+		return rows[0].cnt;
+	})
+};
+/*
 function getCollectionCount(idCollection){
 	return new Promise(function(resolve, reject) {
 		db.get('select count(bc.idbook) as cnt from books_collections bc where bc.idcollection = ?', [idCollection], function (err, row) {
@@ -214,7 +218,7 @@ function getCollectionCount(idCollection){
 		});
 	});
 }
-
+*/
 function processJob(job, done){
 	if (job.type==='getCollectList') {
 		getCollectList(job.url).then(function(result){
