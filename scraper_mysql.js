@@ -6,7 +6,7 @@ const tress = require('tress');
 
 var mysql = require('promise-mysql');
 var connection;
-console.log('01');
+console.log('ficbook.net scraper started');
 mysql.createConnection({
     host     : 'localhost',
     user     : 'root',
@@ -15,24 +15,21 @@ mysql.createConnection({
 }).then(function(conn){
     console.log('02');
     connection = conn;
-    //return getCollectionCount(-10).then(function(cc){console.log(cc);});
     q.push({url: 'https://ficbook.net/collections/' + process.argv[2] + '/list', type: 'getCollectList'});
-}).then(function(){
-    console.log('03');
-	//return connection.end();
 }).catch(function(error){
     //logs out the error
     console.log(error);
+    connection.end();
 });
 console.log('04');
 
 function collectListToDB(collect){
 	//Записываем список авторов
 	var authors = collect.map(function(item){return [item.authorId, item.authorName]});
-    return connection.query('INSERT IGNORE INTO authors (idauthor,name) values ?', [authors]).then(function(){
+    return connection.query('REPLACE INTO authors (idauthor,name) values ?', [authors]).then(function(){
         //Записываем список коллекций
     	var collections = collect.map(function(item){return [item.id, item.name, item.authorId, item.cnt]});
-        return connection.query('INSERT IGNORE INTO collections (idcollection,name,idauthor,cnt ) values ?', [collections]);
+        return connection.query('REPLACE INTO collections (idcollection,name,idauthor,cnt ) values ?', [collections]);
 	}).then(function(){
         //Коммит
 		return connection.query('commit');
@@ -82,7 +79,10 @@ function collectDataToDB(collect, collectId) {
         return connection.query('INSERT IGNORE INTO authors (idauthor,name) values ?', [authors]);
     }).then(function(){
         var books = collect.map(function(item){return [item.id, item.name, item.authorId, item.card]});
-        return connection.query('INSERT IGNORE INTO books (idbook,name,idauthor,card ) values ?', [books]);
+        //return connection.query('INSERT IGNORE INTO books (idbook,name,idauthor,card ) values ?', [books]);
+		return promise.all(books.map(function(item){
+            return connection.query('INSERT IGNORE INTO books (idbook,name,idauthor,card ) values ?', [[item]]);
+		}));
     }).then(function(){
         var books_collections = collect.map(function(item){return [collectId, item.id]});
         return connection.query('INSERT IGNORE INTO books_collections ( idcollection,idbook ) values ?', [books_collections]);
@@ -91,29 +91,6 @@ function collectDataToDB(collect, collectId) {
         return connection.query('commit');
     });
 };
-
-function collectDataToDB_(collect, collectId,callback){
-	console.log('collectDataToDB '+collectId);
-    db.run('begin transaction',logerr);
-	db.run('DELETE FROM books_collections where idcollection = ?', [collectId],function(err) {
-        logerr(err);
-        var stmt = db.prepare('REPLACE INTO books (idbook,name,idauthor,card ) values (?,?,?,?)',logerr);
-        collect.forEach(function(item){
-            stmt.run([item.id, item.name, item.authorId, item.card],logerr);
-        });
-
-        stmt = db.prepare('REPLACE INTO authors (idauthor,name ) values (?,?)',logerr);
-        collect.forEach(function(item){
-            stmt.run([item.authorId, item.authorName],logerr);
-        });
-
-        stmt = db.prepare('REPLACE INTO books_collections ( idcollection,idbook ) values (?,?)',logerr);
-        collect.forEach(function(item){
-            stmt.run([collectId, item.id],logerr);
-        });
-        db.run('commit',function(err){logerr(err);callback();});
-	});
-}
 
 function getCollectList(url){
     return request({url: url})
@@ -226,10 +203,14 @@ function processJob(job, done){
 		})
 	};
 	if (job.type==='collectListToDB') {
-		collectListToDB(job.result).then(function(){console.log('Job '+job.type+' finished');done(null)});
+		collectListToDB(job.result).then(function(){console.log('Job '+job.type+' finished');done(null)}).catch(function(){
+            done(null);
+		});
 	}
 	if (job.type==='collectDataToDB') {
-		collectDataToDB(job.result, job.id).then(function(){console.log('Job '+job.type+' finished');done(null)});
+		collectDataToDB(job.result, job.id).then(function(){console.log('Job '+job.type+' finished');done(null)}).catch(function(){
+            done(null);
+        });
 	}
 };
 
