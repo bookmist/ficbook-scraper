@@ -4,8 +4,6 @@ const promise = require('bluebird');
 const cheerio = require('cheerio');
 const tress = require('tress');
 
-//var mysql      = require('mysql');
-//var mysql = promise.promisifyAll(require('mysql'));
 var mysql = require('promise-mysql');
 var connection;
 console.log('01');
@@ -17,17 +15,16 @@ mysql.createConnection({
 }).then(function(conn){
     console.log('02');
     connection = conn;
-    return getCollectionCount(-10).then(function(cc){console.log(cc);});
-//    return collectListToDB([{id:-1,name:'test',cnt:0,authorId:-1,authorName:'test'},{id:-2,name:'test',cnt:0,authorId:-2,authorName:'test'}]);
+    //return getCollectionCount(-10).then(function(cc){console.log(cc);});
+    q.push({url: 'https://ficbook.net/collections/' + process.argv[2] + '/list', type: 'getCollectList'});
 }).then(function(){
     console.log('03');
-	return connection.end();
+	//return connection.end();
 }).catch(function(error){
     //logs out the error
     console.log(error);
 });
 console.log('04');
-//connection.connect();
 
 function collectListToDB(collect){
 	//Записываем список авторов
@@ -202,23 +199,7 @@ function getCollectionCount(idCollection) {
 		return rows[0].cnt;
 	})
 };
-/*
-function getCollectionCount(idCollection){
-	return new Promise(function(resolve, reject) {
-		db.get('select count(bc.idbook) as cnt from books_collections bc where bc.idcollection = ?', [idCollection], function (err, row) {
-			if (err) {
-				reject(err);
-			}else {
-                if ((typeof row === 'object') && (row.cnt > 0 )) 
-				{
-					resolve(row.cnt);
-				} else {resolve(0);}
 
-			};
-		});
-	});
-}
-*/
 function processJob(job, done){
 	if (job.type==='getCollectList') {
 		getCollectList(job.url).then(function(result){
@@ -245,10 +226,10 @@ function processJob(job, done){
 		})
 	};
 	if (job.type==='collectListToDB') {
-		collectListToDB(job.result,function(){console.log('Job '+job.type+' finished');done(null)});
+		collectListToDB(job.result).then(function(){console.log('Job '+job.type+' finished');done(null)});
 	}
 	if (job.type==='collectDataToDB') {
-		collectDataToDB(job.result, job.id,function(){console.log('Job '+job.type+' finished');done(null)});
+		collectDataToDB(job.result, job.id).then(function(){console.log('Job '+job.type+' finished');done(null)});
 	}
 };
 
@@ -257,7 +238,7 @@ var q = tress(processJob, 5);
 
 q.drain = function(){
     console.log('db close');
-    db.close;
+    connection.end();
 	console.log('All finished');
 };
 /*
