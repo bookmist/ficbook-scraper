@@ -17,7 +17,7 @@ mysql.createConnection({
 }).then(function(conn){
     console.log('02');
     connection = conn;
-    return collectListToDB([{authorId:-1,authorName:'test'}]);
+    return collectListToDB([{id:-1,name:'test',cnt:0,authorId:-1,authorName:'test'}]);
 }).then(function(){
     console.log('03');
 	return connection.end();
@@ -31,9 +31,12 @@ console.log('04');
 function collectListToDB(collect){
 	//Записываем список авторов
 	var authors = collect.map(function(item){return [item.authorId, item.authorName]});
-    return connection.query('INSERT IGNORE INTO authors (idauthor,name) values ?', [authors]).then(
-    	function(){return connection.query('commit');}
-	);
+    return connection.query('INSERT IGNORE INTO authors (idauthor,name) values ?', [authors]).then(function(){
+    	var collections = collect.map(function(item){return [item.id, item.name, item.authorId, item.cnt]});
+        return connection.query('INSERT IGNORE INTO collections (idcollection,name,idauthor,cnt ) values ?', [collections]);
+	}).then(function(){
+		return connection.query('commit');
+    });
 	//Записываем список коллекций
 	//Коммит
 	/*
