@@ -35,7 +35,7 @@ app.get('/testQuery',rs_1);
 
 function rs_1(req,res){
     return connection.query(`
-    select b.card, count(*) cnt, sum(100/c.cnt) cnt_w1
+    select b.name, b.idbook, b.card, count(*) cnt, sum(100/c.cnt) cnt_w1
     from
     books b inner join
     (collections c inner join
@@ -51,7 +51,7 @@ function rs_1(req,res){
 `, [req.query.idBook]).then(function(rows){
         var books=rows.reduce(function(previousValue, currentItem, index, arr){
             if (currentItem.card === null){
-                return previousValue;
+                return previousValue + '<section class="fanfic-thumb-block"><a href="/readfic/' + currentItem.idbook.toString()+'">'+currentItem.name + '</a></section>';;
             } else {
                 return previousValue + '<section class="fanfic-thumb-block">' + currentItem.card + '</section>';
             }
