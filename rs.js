@@ -6,36 +6,30 @@ const promise = require('bluebird');
 const express = require('express');
 const app = express();
 
-const mysql = require('promise-mysql');
-var connection;
-console.log('ficbook.net scraper started');
+const sqlite = require('sqlite-async');
+var db;
 
-mysql.createConnection({
-    host     : 'localhost',
-    user     : 'root',
-    password : 'vjybnjh77',
-    database : 'sysadm'
-}).then(function(conn){
-    console.log('02');
-    connection = conn;
+async function initDb() {
+    db = await sqlite.open('data.sqlite');
     start();
-}).catch(function(error){
-    //logs out the error
-    console.log(error);
-    connection.end();
-});
+};
+
 
 function start(){
+    console.log('ficbook.net helper started');
     app.listen(8085);
 }
 
 app.get('/test', test);
 app.get('/testPage', testPage);
+//app.get('/testQuery',testQueryAsync);
 app.get('/testQuery',rs_1);
 
-function rs_1(req,res){
-    return connection.query(`
-    select b.name, b.idbook, b.card, count(*) cnt, sum(100/c.cnt) cnt_w1
+initDb();
+
+async function rs_1(req,res){
+    var rows = await db.all(`
+    select b.name name, b.idbook idBook, b.card card, count(*) cnt, sum(100/c.cnt) cnt_w1
     from
     books b inner join
     (collections c inner join
@@ -46,16 +40,16 @@ function rs_1(req,res){
     on b.idbook = bc.idbook
     where bc1.idbook=?
     group by bc.idbook
-    order by cnt desc 
+    order by cnt_w1 desc 
     limit 20   
-`, [req.query.idBook]).then(function(rows){
-        var books=rows.reduce(function(previousValue, currentItem, index, arr){
-            if (currentItem.card === null){
-                return previousValue + '<section class="fanfic-thumb-block"><a href="/readfic/' + currentItem.idbook.toString()+'">'+currentItem.name + '</a></section>';;
-            } else {
-                return previousValue + '<section class="fanfic-thumb-block">' + currentItem.card + '</section>';
-            }
-        },'');
+    `, [req.query.idBook]);
+    var books=rows.reduce(function(previousValue, currentItem, index, arr){
+        if (currentItem.card === null){
+            return previousValue + '<section class="fanfic-thumb-block"><a href="/readfic/' + currentItem.idBook.toString()+'">'+currentItem.name + '</a></section>';;
+        } else {
+            return previousValue + '<section class="fanfic-thumb-block">' + currentItem.card + '</section>';
+        }
+    },'');
         res.send(
             `<!DOCTYPE html>
 <html lang="ru">
@@ -64,7 +58,7 @@ function rs_1(req,res){
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,700,400italic&subset=latin,cyrillic,cyrillic-ext,latin-ext' rel='stylesheet' type='text/css'>
     <title>Сборники</title>
-    <link rel="stylesheet" href="https://teinon.net/ficbook/css/all-32851d9c.css">
+    <link rel="stylesheet" href="https://teinon.net/ficbook/css/all-d07d1650.css">
     <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
     <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
     <link rel="manifest" href="/manifest.json">
@@ -117,14 +111,15 @@ function rs_1(req,res){
 </body>
 </html>`
             );
-    })
+}
 
+async function testQueryAsync(req, res) {
+    var row = await db.get('select count(bc.idbook) as cnt from books_collections bc where bc.idcollection = ?', [req.query.idCollection]);
+    res.send('cnt ' + row.cnt);
 }
 
 function testQuery(req, res){
-    return connection.query('select count(bc.idbook) as cnt from books_collections bc where bc.idcollection = ?', [req.query.idCollection]).then(function(rows){
-        res.send('cnt ' + rows[0].cnt);;
-    })
+    testQueryAsync(req, res);
 }
 
 function test(req, res){
@@ -140,7 +135,7 @@ function testPage(req, res){
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,300,700,400italic&subset=latin,cyrillic,cyrillic-ext,latin-ext' rel='stylesheet' type='text/css'>
     <title>Сборники</title>
-    <link rel="stylesheet" href="https://teinon.net/ficbook/css/all-32851d9c.css">
+    <link rel="stylesheet" href="https://teinon.net/ficbook/css/all-d07d1650.css">
     <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
     <link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16">
     <link rel="manifest" href="/manifest.json">

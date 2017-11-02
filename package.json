@@ -3,6 +3,7 @@
     "blessed": "^0.1.81",
     "bluebird": "^3.5.1",
     "cheerio": "^1.0.0-rc.2",
+    "express": "^4.16.2",
     "request": "^2.83.0",
     "request-promise": "^4.2.2",
     "sqlite-async": "^1.0.10",
